@@ -1,47 +1,121 @@
-**# Automobile Showroom Management System (DBMS Course Project)
+# 🏎️ Automobile Showroom Management System
 
-An enterprise-grade, full-stack automobile dealership management platform engineered with a **Java (Spring Boot 3)** backend, **MySQL 8.0** relational database, and an ultra-modern **React (Vite)** single-page frontend[cite: 1, 2, 8]. Designed for multi-branch automobile dealerships to manage vehicle inventory, 1:1 statutory specifications, customer relations, transactional sales, financial logs, and after-sales service tracking.
+An enterprise-grade, full-stack dealership management platform built with **Spring Boot 3**, **MySQL 8.0**, and **React (Vite)**. Designed to manage multi-branch vehicle inventory, 1:1 statutory records (tax, insurance, features), customer relations, sales transactions, payments, and after-sales service tracking.
 
 ---
 
 ## 🏛️ System Architecture
 
-The project adheres strictly to the **3-Tier Enterprise Architectural Pattern** with complete decoupling between frontend and backend tiers[cite: 2]:
+The application implements a decoupled **3-tier enterprise architecture**:
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │               Client Tier: React (Vite)                │
 │    Interactive SaaS UI • Recharts Analytics • Axios    │
 └───────────────────────────┬────────────────────────────┘
-                            │ HTTP / JSON (REST APIs with CORS)[cite: 2, 6]
+                             │ HTTP / JSON (REST APIs with CORS)
 ┌───────────────────────────▼────────────────────────────┐
 │              Application Tier: Spring Boot 3           │
-│  ├── Controller Layer  (REST Endpoints, Validation)    │[cite: 2]
-│  ├── Service Layer     (Business Rules & Integrity)    │[cite: 2, 5]
+│  ├── Controller Layer  (REST Endpoints, Validation)    │
+│  ├── Service Layer     (Business Rules & Integrity)    │
 │  ├── DTO Layer         (Serialization & Loop Breaking) │
-│  └── Repository Layer  (Spring Data JPA Interfaces)    │[cite: 2, 5]
+│  └── Repository Layer  (Spring Data JPA Interfaces)    │
 └───────────────────────────┬────────────────────────────┘
-                            │ JDBC (Hibernate ORM Dialect)
+                             │ JDBC (Hibernate ORM Dialect)
 ┌───────────────────────────▼────────────────────────────┐
 │            Database Tier: MySQL Relational DB          │
-│    9 Normalized Tables • Foreign Key Constraints       │[cite: 2, 4, 8]
+│    9 Normalized Tables • Foreign Key Constraints        │
 └────────────────────────────────────────────────────────┘
-Architectural HighlightsDecoupled API Contract: By transferring flat Data Transfer Objects (DTOs) between tiers instead of raw @Entity classes, the system eliminates bidirectional circular reference loops and StackOverflowError exceptions[cite: 6].Separation of Concerns: HTTP parsing and status mapping remain isolated in Controllers, domain integrity logic runs within @Transactional service boundaries, and data access executes through abstracted JPA repositories.   📊 Relational Database Design & ER SchemaThe database model implements 9 normalized relational entities matching the system ER diagram:   EntityKey AttributesRelationships & CardinalityShowroomid, name, address, manager, salesExecutive1 : N with Vehicle and ServicesVehicleid, type, brand, colour, numberPlate, costN : 1 with Showroom; 1 : 1 with Features, Tax, Insurance; 1 : N with SalesFeaturesid, engineCapacity, mileage, colour, seatCapacity, fuelType, pollutionControl, safetyFeatures1 : 1 with Vehicle (Foreign Key: vehicle_id, Unique)Taxid, vehicleTax, roadTax, paid1 : 1 with Vehicle (Foreign Key: vehicle_id, Unique)Insuranceid, expiryDate, familyDetails, bankDetails1 : 1 with Vehicle (Foreign Key: vehicle_id, Unique)Customerid, firstName, middleName, lastName, phone, email, address1 : N with Sales, Payment, and ServicesSalesid, target, quantity, date, offerN : 1 with Vehicle and Customer; 1 : N with PaymentPaymentid, method (CASH/LOAN/CHEQUE), amount, paymentDateN : 1 with Customer and SalesServicesid, issue, price, entryDate, deliveryDateN : 1 with Showroom and Customer⚡ Core DBMS & Engineering HighlightsTransactional ACID Checkout: The system prevents double-selling inventory by checking vehicle sales status in an atomic, isolated service transaction; if invalid, the operation throws a descriptive exception and rolls back completely.   Entity Isolation (3NF): Vehicle specifications, tax assessments, and insurance policies are normalized into separate 1:1 tables rather than wide null-heavy columns, allowing independent policy lifecycles and compliance tracking.   Interactive Drill-Down Dashboard: Features KPI metric cards and Recharts visualizations that dynamically aggregate sales revenue, service ticket earnings, and in-stock inventory per showroom branch.   Real-Time Client-Side Search: Instantaneous multi-field search inputs across all 4 primary management pages (Vehicles, Showrooms, Sales, and Service tickets).   🛠️ Technology StackBackend: Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate ORM, Maven, Lombok[cite: 2, 4]Database: MySQL 8.0 Community Server[cite: 2]Frontend: React 18, Vite build tool, Axios client, React Router DOM   Visualizations & UI: Recharts (dynamic charts), Lucide React (modern SVG iconography), Custom Dark Slate SaaS Theme   🚀 Setup & Installation Guide1. Database SetupLaunch MySQL Workbench or your MySQL terminal client and create the schema:   SQLCREATE DATABASE showroom_db;
-2. Backend Configuration & ExecutionNavigate to the backend directory:   Bashcd backend/showroom-api
-Verify src/main/resources/application.properties matches your local MySQL credentials:   Propertiesspring.datasource.url=jdbc:mysql://localhost:3306/showroom_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-spring.datasource.username=root
-spring.datasource.password=root
-spring.jpa.hibernate.ddl-auto=update
-server.port=8081
-Run the Spring Boot application:   Bash# Windows PowerShell
+```
+
+### Architectural Highlights
+
+- **Decoupled DTO Contract** — Flat Data Transfer Objects (DTOs) prevent circular-reference recursion and `StackOverflowError` exceptions during JSON serialization.
+- **Separation of Concerns** — Controllers handle HTTP mappings, Service methods enforce integrity constraints inside `@Transactional` boundaries, and JPA repositories manage database persistence.
+
+---
+
+## 📊 Relational Database Design & ER Schema
+
+The database model implements 9 normalized relational entities matching the ER schema:
+
+| Entity | Primary & Foreign Keys | Key Attributes | Cardinality |
+|---|---|---|---|
+| **Showroom** | `id` (PK) | name, address, manager, salesExecutive | 1 : N with Vehicle, Services |
+| **Vehicle** | `id` (PK), `showroom_id` (FK) | type, brand, colour, numberPlate, cost | N : 1 Showroom; 1 : 1 Features, Tax, Insurance |
+| **Features** | `id` (PK), `vehicle_id` (FK, Unique) | engineCapacity, mileage, fuelType, seatCapacity, safetyFeatures | 1 : 1 with Vehicle |
+| **Tax** | `id` (PK), `vehicle_id` (FK, Unique) | vehicleTax, roadTax, paid | 1 : 1 with Vehicle |
+| **Insurance** | `id` (PK), `vehicle_id` (FK, Unique) | expiryDate, familyDetails, bankDetails | 1 : 1 with Vehicle |
+| **Customer** | `id` (PK) | firstName, middleName, lastName, phone, email, address | 1 : N with Sales, Payments, Services |
+| **Sales** | `id` (PK), `vehicle_id` (FK), `customer_id` (FK) | target, quantity, date, offer | N : 1 Vehicle & Customer; 1 : N Payment |
+| **Payment** | `id` (PK), `sale_id` (FK), `customer_id` (FK) | method (CASH/LOAN/CHEQUE), amount, paymentDate | N : 1 with Customer & Sales |
+| **Services** | `id` (PK), `showroom_id` (FK), `customer_id` (FK) | issue, price, entryDate, deliveryDate | N : 1 with Showroom & Customer |
+
+---
+
+## ⚡ Core DBMS & Engineering Highlights
+
+- **ACID Transaction Guarantee** — Inventory checks execute inside `@Transactional(rollbackFor = Exception.class)` boundaries so a sold vehicle cannot be double-sold.
+- **Entity Normalization (3NF)** — 1:1 statutory specifications (tax, features, insurance) are isolated from core inventory records to eliminate sparse null columns and preserve clean normal form.
+- **Real-Time Client-Side Filtering** — Live search inputs across all four management views (Vehicles, Showrooms, Sales, Services).
+- **Executive Metrics Dashboard** — Aggregates multi-table joins to calculate total branch revenue, active maintenance tickets, and available inventory.
+
+---
+
+## 🛠️ Technology Stack
+
+- **Backend:** Java 17, Spring Boot 3.x, Spring Data JPA, Hibernate ORM, Maven, Lombok
+- **Database:** MySQL 8.0 Relational DBMS
+- **Frontend:** React 18, Vite, Axios, Recharts, Lucide Icons
+
+---
+
+## 🚀 Setup & Local Execution
+
+### 1. Database Setup
+
+Launch MySQL Workbench or terminal and run:
+
+\`\`\`sql
+CREATE DATABASE showroom_db;
+\`\`\`
+
+### 2. Backend Execution
+
+Navigate to the backend project and start Spring Boot:
+
+\`\`\`bash
+cd backend/showroom-api
+
+# Windows
 .\mvnw.cmd clean spring-boot:run
 
-# Linux / macOS
+# macOS / Linux
 ./mvnw clean spring-boot:run
-Backend REST API boots up at http://localhost:8081/api.3. Frontend Configuration & ExecutionOpen a second terminal window and navigate to the frontend directory:Bashcd frontend
-Install the required dependencies:Bashnpm install
-Start the Vite development server:Bashnpm run dev
-Frontend UI becomes active at http://localhost:5173.   🔍 Key Multi-Table Join Queries (DBMS Showcase)Examiners commonly inspect raw relational joins during project demonstrations:   1. Vehicle Sales with Customer & Payment DetailsSQLSELECT 
+\`\`\`
+
+Backend runs on `http://localhost:8081`.
+
+### 3. Frontend Execution
+
+In a separate terminal, start Vite:
+
+\`\`\`bash
+cd frontend
+npm install
+npm run dev
+\`\`\`
+
+Frontend runs on `http://localhost:5173`.
+
+---
+
+## 🔍 Key Multi-Table Join Queries (DBMS Showcase)
+
+### 1. Sales Records with Customer, Vehicle, and Payment Details
+
+\`\`\`sql
+SELECT 
     s.id AS sale_id,
     s.date AS sale_date,
     CONCAT(c.first_name, ' ', COALESCE(c.last_name, '')) AS customer_name,
@@ -55,7 +129,12 @@ FROM sales s
 JOIN customer c ON s.customer_id = c.id
 JOIN vehicle v ON s.vehicle_id = v.id
 LEFT JOIN payment p ON p.sale_id = s.id;
-2. Branch-Wise Aggregation & Revenue MetricsSQLSELECT 
+\`\`\`
+
+### 2. Branch-Wise Aggregated Revenue
+
+\`\`\`sql
+SELECT 
     sh.name AS showroom_name,
     sh.manager,
     COUNT(s.id) AS total_vehicles_sold,
@@ -64,9 +143,5 @@ FROM showroom sh
 LEFT JOIN vehicle v ON v.showroom_id = sh.id
 LEFT JOIN sales s ON s.vehicle_id = v.id
 GROUP BY sh.id, sh.name, sh.manager;
-👩‍💻 Author & Project ContextStudent Name: Zoha Qureshi (Zoa)   Degree: B.Tech Computer Science & Engineering   Institution: Shri G. S. Institute of Technology and Science (SGSITS), Indore   Course: Database Management Systems (DBMS) Laboratory Project   
-<ElicitationsGroup>
-  <Elicitation label="Prepare DBMS lab viva Q&A" query="What are the top 5 questions the external examiner will ask about this ER diagram and code?"/>
-  <Elicitation label="Generate project report text" query="Can you help me generate the project report text (abstract, schema, and methodology) for submission?"/>
-</ElicitationsGroup>
-**
+\`\`\`
+
