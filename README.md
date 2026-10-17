@@ -1,4 +1,4 @@
-# Automobile Showroom Management System (DBMS Course Project)
+**# Automobile Showroom Management System (DBMS Course Project)
 
 An enterprise-grade, full-stack automobile dealership management platform engineered with a **Java (Spring Boot 3)** backend, **MySQL 8.0** relational database, and an ultra-modern **React (Vite)** single-page frontend[cite: 1, 2, 8]. Designed for multi-branch automobile dealerships to manage vehicle inventory, 1:1 statutory specifications, customer relations, transactional sales, financial logs, and after-sales service tracking.
 
@@ -69,3 +69,4 @@ GROUP BY sh.id, sh.name, sh.manager;
   <Elicitation label="Prepare DBMS lab viva Q&A" query="What are the top 5 questions the external examiner will ask about this ER diagram and code?"/>
   <Elicitation label="Generate project report text" query="Can you help me generate the project report text (abstract, schema, and methodology) for submission?"/>
 </ElicitationsGroup>
+**
