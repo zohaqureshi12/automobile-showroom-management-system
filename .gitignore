@@ -1,8 +1,29 @@
-backend/target/
-backend/*.jar
-backend/.idea/
-frontend/node_modules/
-frontend/dist/
+# ===============================
+# Backend (Java / Spring Boot / Maven)
+# ===============================
+**/target/
+**/*.jar
+**/*.war
+**/.idea/
+**/*.iml
+**/.mvn/wrapper/maven-wrapper.jar
 
-# Ignore actual local database credentials
+# ===============================
+# Frontend (React / Vite / Node)
+# ===============================
+**/node_modules/
+**/dist/
+**/build/
+**/.env.local
+**/.env.*.local
+
+# ===============================
+# Credentials & Secrets (Pattern A)
+# ===============================
 **/src/main/resources/application.properties
+
+# ===============================
+# OS & IDE Cache
+# ===============================
+.DS_Store
+Thumbs.db
