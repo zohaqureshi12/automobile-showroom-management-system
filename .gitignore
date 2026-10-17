@@ -3,3 +3,6 @@ backend/*.jar
 backend/.idea/
 frontend/node_modules/
 frontend/dist/
+
+# Ignore actual local database credentials
+**/src/main/resources/application.properties
