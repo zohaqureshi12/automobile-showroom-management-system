@@ -94,7 +94,7 @@ cd backend/showroom-api
 ./mvnw clean spring-boot:run
 \`\`\`
 
-Backend runs on `http://localhost:8081`.
+Backend runs on `http://localhost:8080`.
 
 ### 3. Frontend Execution
 
