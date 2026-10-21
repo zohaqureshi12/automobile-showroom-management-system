@@ -17,13 +17,13 @@ public class TaxController {
     private final TaxService taxService;
 
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<TaxDTO> getTaxByVehicle(@PathVariable Long vehicleId) {
+    public ResponseEntity<TaxDTO> getTaxByVehicle(@PathVariable("vehicleId") Long vehicleId) {
         return ResponseEntity.ok(toDTO(taxService.getTaxByVehicleId(vehicleId)));
     }
 
     @PostMapping("/vehicle/{vehicleId}")
     public ResponseEntity<TaxDTO> createTax(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody TaxDTO dto) {
         Tax tax = toEntity(dto);
         Tax saved = taxService.createTax(vehicleId, tax);
@@ -32,7 +32,7 @@ public class TaxController {
 
     @PutMapping("/vehicle/{vehicleId}")
     public ResponseEntity<TaxDTO> updateTax(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody TaxDTO dto) {
         Tax details = toEntity(dto);
         Tax updated = taxService.updateTax(vehicleId, details);
@@ -40,7 +40,7 @@ public class TaxController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTax(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTax(@PathVariable("id") Long id) {
         taxService.deleteTax(id);
         return ResponseEntity.noContent().build();
     }
@@ -53,7 +53,7 @@ public class TaxController {
                 .vehicleTax(t.getVehicleTax())
                 .roadTax(t.getRoadTax())
                 .paid(t.getPaid())
-                .vehicleId(t.getVehicle().getId())
+                .vehicleId(t.getVehicle() != null ? t.getVehicle().getId() : null)
                 .build();
     }
 

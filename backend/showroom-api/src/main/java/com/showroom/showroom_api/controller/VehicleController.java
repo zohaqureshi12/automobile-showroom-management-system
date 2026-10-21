@@ -3,6 +3,7 @@ package com.showroom.showroom_api.controller;
 import com.showroom.showroom_api.dto.*;
 import com.showroom.showroom_api.model.Features;
 import com.showroom.showroom_api.model.Insurance;
+import com.showroom.showroom_api.model.Showroom;
 import com.showroom.showroom_api.model.Tax;
 import com.showroom.showroom_api.model.Vehicle;
 import com.showroom.showroom_api.repository.SalesRepository;
@@ -39,12 +40,12 @@ public class VehicleController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<VehicleResponseDTO> getVehicleById(@PathVariable Long id) {
+    public ResponseEntity<VehicleResponseDTO> getVehicleById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(toResponseDTO(vehicleService.getVehicleById(id)));
     }
 
     @GetMapping("/showroom/{showroomId}")
-    public ResponseEntity<List<VehicleResponseDTO>> getVehiclesByShowroom(@PathVariable Long showroomId) {
+    public ResponseEntity<List<VehicleResponseDTO>> getVehiclesByShowroom(@PathVariable("showroomId") Long showroomId) {
         List<VehicleResponseDTO> dtos = vehicleService.getVehiclesByShowroom(showroomId).stream()
                 .map(this::toResponseDTO)
                 .toList();
@@ -52,45 +53,8 @@ public class VehicleController {
     }
 
     @GetMapping("/{id}/full")
-    public ResponseEntity<VehicleDetailResponseDTO> getVehicleFullDetail(@PathVariable Long id) {
-        Vehicle vehicle = vehicleService.getVehicleById(id);
-
-        FeaturesDTO featuresDTO = null;
-        try {
-            Features features = featuresService.getFeaturesByVehicleId(id);
-            featuresDTO = toFeaturesDTO(features);
-        } catch (Exception ignored) {
-        }
-
-        TaxDTO taxDTO = null;
-        try {
-            Tax tax = taxService.getTaxByVehicleId(id);
-            taxDTO = toTaxDTO(tax);
-        } catch (Exception ignored) {
-        }
-
-        InsuranceDTO insuranceDTO = null;
-        try {
-            Insurance insurance = insuranceService.getInsuranceByVehicleId(id);
-            insuranceDTO = toInsuranceDTO(insurance);
-        } catch (Exception ignored) {
-        }
-
-        VehicleDetailResponseDTO detail = VehicleDetailResponseDTO.builder()
-                .id(vehicle.getId())
-                .type(vehicle.getType())
-                .brand(vehicle.getBrand())
-                .colour(vehicle.getColour())
-                .numberPlate(vehicle.getNumberPlate())
-                .cost(vehicle.getCost())
-                .showroomId(vehicle.getShowroom().getId())
-                .showroomName(vehicle.getShowroom().getName())
-                .features(featuresDTO)
-                .tax(taxDTO)
-                .insurance(insuranceDTO)
-                .build();
-
-        return ResponseEntity.ok(detail);
+    public ResponseEntity<VehicleDetailResponseDTO> getVehicleFullDetail(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(vehicleService.getVehicleFullDetails(id));
     }
 
     /**
@@ -187,16 +151,25 @@ public class VehicleController {
 
     @PostMapping
     public ResponseEntity<VehicleResponseDTO> createVehicle(
-            @RequestParam Long showroomId,
+            @RequestParam(required = false) Long showroomId,
             @RequestBody VehicleRequestDTO dto) {
+        Long targetShowroomId = showroomId;
+        if (targetShowroomId == null) {
+            if (dto.getShowroomId() != null) {
+                targetShowroomId = dto.getShowroomId();
+            } else if (dto.getShowroom() != null && dto.getShowroom().getId() != null) {
+                targetShowroomId = dto.getShowroom().getId();
+            }
+        }
+
         Vehicle vehicle = toEntity(dto);
-        Vehicle saved = vehicleService.createVehicle(showroomId, vehicle);
+        Vehicle saved = vehicleService.createVehicle(targetShowroomId, vehicle);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponseDTO(saved));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<VehicleResponseDTO> updateVehicle(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody VehicleRequestDTO dto) {
         Vehicle details = toEntity(dto);
         Vehicle updated = vehicleService.updateVehicle(id, details);
@@ -204,7 +177,7 @@ public class VehicleController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteVehicle(@PathVariable("id") Long id) {
         vehicleService.deleteVehicle(id);
         return ResponseEntity.noContent().build();
     }
@@ -219,18 +192,25 @@ public class VehicleController {
                 .colour(v.getColour())
                 .numberPlate(v.getNumberPlate())
                 .cost(v.getCost())
-                .showroomId(v.getShowroom().getId())
-                .showroomName(v.getShowroom().getName())
+                .showroomId(v.getShowroom() != null ? v.getShowroom().getId() : null)
+                .showroomName(v.getShowroom() != null ? v.getShowroom().getName() : null)
                 .build();
     }
 
     private Vehicle toEntity(VehicleRequestDTO dto) {
+        Showroom s = dto.getShowroom();
+        if (s == null && dto.getShowroomId() != null) {
+            s = Showroom.builder().id(dto.getShowroomId()).build();
+        }
+
         return Vehicle.builder()
                 .type(dto.getType())
                 .brand(dto.getBrand())
                 .colour(dto.getColour())
                 .numberPlate(dto.getNumberPlate())
                 .cost(dto.getCost())
+                .showroom(s)
+                .version(dto.getVersion())
                 .build();
     }
 

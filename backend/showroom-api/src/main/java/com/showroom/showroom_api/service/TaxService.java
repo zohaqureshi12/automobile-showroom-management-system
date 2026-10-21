@@ -1,6 +1,5 @@
 package com.showroom.showroom_api.service;
 
-import com.showroom.showroom_api.exception.BadRequestException;
 import com.showroom.showroom_api.exception.ResourceNotFoundException;
 import com.showroom.showroom_api.model.Tax;
 import com.showroom.showroom_api.model.Vehicle;
@@ -25,12 +24,12 @@ public class TaxService {
 
     @Transactional
     public Tax createTax(Long vehicleId, Tax tax) {
+        if (taxRepository.existsByVehicle_Id(vehicleId)) {
+            throw new RuntimeException("1:1 constraint violation: Tax already exists for this vehicle");
+        }
+
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
-
-        if (taxRepository.existsByVehicle_Id(vehicleId)) {
-            throw new BadRequestException("Tax record already exists for vehicle id: " + vehicleId);
-        }
 
         tax.setVehicle(vehicle);
         return taxRepository.save(tax);

@@ -1,5 +1,7 @@
 package com.showroom.showroom_api.exception;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,6 +30,49 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler({
+            DataIntegrityViolationException.class,
+            ConstraintViolationException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(Exception ex) {
+        Throwable rootCause = null;
+        if (ex instanceof DataIntegrityViolationException dive) {
+            rootCause = dive.getRootCause();
+        } else if (ex.getCause() != null) {
+            rootCause = ex.getCause();
+        }
+        if (rootCause == null) {
+            rootCause = ex;
+        }
+
+        String rootMsg = rootCause.getMessage() != null ? rootCause.getMessage() : "";
+        String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
+        String combined = (exMsg + " " + rootMsg).toLowerCase();
+
+        if (combined.contains("foreign key") || combined.contains("cannot delete") || combined.contains("a foreign key constraint fails")) {
+            if (combined.contains("delete")) {
+                return buildResponse(HttpStatus.CONFLICT,
+                        "Cannot delete this record because it has active linked records (Insurance, Tax, Sales, or Service history).");
+            } else {
+                return buildResponse(HttpStatus.BAD_REQUEST,
+                        "Invalid reference: The selected Showroom does not exist or has an invalid ID.");
+            }
+        }
+
+        if (combined.contains("duplicate entry")) {
+            return buildResponse(HttpStatus.CONFLICT,
+                    "Duplicate entry: A record with this number plate already exists.");
+        }
+
+        String errorDetail = !rootMsg.isBlank() ? rootMsg : exMsg;
+        return buildResponse(HttpStatus.BAD_REQUEST, errorDetail);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 

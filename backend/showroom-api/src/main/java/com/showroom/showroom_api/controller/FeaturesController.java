@@ -17,13 +17,13 @@ public class FeaturesController {
     private final FeaturesService featuresService;
 
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<FeaturesDTO> getFeaturesByVehicle(@PathVariable Long vehicleId) {
+    public ResponseEntity<FeaturesDTO> getFeaturesByVehicle(@PathVariable("vehicleId") Long vehicleId) {
         return ResponseEntity.ok(toDTO(featuresService.getFeaturesByVehicleId(vehicleId)));
     }
 
     @PostMapping("/vehicle/{vehicleId}")
     public ResponseEntity<FeaturesDTO> createFeatures(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody FeaturesDTO dto) {
         Features features = toEntity(dto);
         Features saved = featuresService.createFeatures(vehicleId, features);
@@ -32,7 +32,7 @@ public class FeaturesController {
 
     @PutMapping("/vehicle/{vehicleId}")
     public ResponseEntity<FeaturesDTO> updateFeatures(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody FeaturesDTO dto) {
         Features details = toEntity(dto);
         Features updated = featuresService.updateFeatures(vehicleId, details);
@@ -40,7 +40,7 @@ public class FeaturesController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFeatures(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFeatures(@PathVariable("id") Long id) {
         featuresService.deleteFeatures(id);
         return ResponseEntity.noContent().build();
     }

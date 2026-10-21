@@ -2,7 +2,7 @@ package com.showroom.showroom_api.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 @Entity
@@ -13,6 +13,7 @@ import java.util.List;
 @Builder
 @ToString(exclude = {"showroom", "features", "tax", "insurance", "sales"})
 @EqualsAndHashCode(exclude = {"showroom", "features", "tax", "insurance", "sales"})
+
 public class Vehicle {
 
     @Id
@@ -36,17 +37,25 @@ public class Vehicle {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "showroom_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Showroom showroom;
 
+    @Column
+    private Integer version;
+
     @OneToOne(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Features features;
 
     @OneToOne(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Tax tax;
 
     @OneToOne(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Insurance insurance;
 
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private List<Sales> sales;
 }

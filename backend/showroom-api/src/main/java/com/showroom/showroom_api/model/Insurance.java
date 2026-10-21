@@ -1,18 +1,17 @@
 package com.showroom.showroom_api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "insurances")
+@Table(name = "insurance")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"vehicle"})
-@EqualsAndHashCode(exclude = {"vehicle"})
 public class Insurance {
 
     @Id
@@ -28,7 +27,10 @@ public class Insurance {
     @Column(name = "bank_details")
     private String bankDetails;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", referencedColumnName = "id", unique = true, nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Vehicle vehicle;
 }

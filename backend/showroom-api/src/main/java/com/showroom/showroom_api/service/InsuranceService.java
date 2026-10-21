@@ -1,6 +1,5 @@
 package com.showroom.showroom_api.service;
 
-import com.showroom.showroom_api.exception.BadRequestException;
 import com.showroom.showroom_api.exception.ResourceNotFoundException;
 import com.showroom.showroom_api.model.Insurance;
 import com.showroom.showroom_api.model.Vehicle;
@@ -25,12 +24,12 @@ public class InsuranceService {
 
     @Transactional
     public Insurance createInsurance(Long vehicleId, Insurance insurance) {
+        if (insuranceRepository.existsByVehicle_Id(vehicleId)) {
+            throw new RuntimeException("1:1 constraint violation: Insurance already exists for this vehicle");
+        }
+
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
-
-        if (insuranceRepository.existsByVehicle_Id(vehicleId)) {
-            throw new BadRequestException("Insurance record already exists for vehicle id: " + vehicleId);
-        }
 
         insurance.setVehicle(vehicle);
         return insuranceRepository.save(insurance);

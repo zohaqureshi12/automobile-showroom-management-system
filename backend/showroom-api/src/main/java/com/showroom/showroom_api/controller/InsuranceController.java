@@ -17,13 +17,13 @@ public class InsuranceController {
     private final InsuranceService insuranceService;
 
     @GetMapping("/vehicle/{vehicleId}")
-    public ResponseEntity<InsuranceDTO> getInsuranceByVehicle(@PathVariable Long vehicleId) {
+    public ResponseEntity<InsuranceDTO> getInsuranceByVehicle(@PathVariable("vehicleId") Long vehicleId) {
         return ResponseEntity.ok(toDTO(insuranceService.getInsuranceByVehicleId(vehicleId)));
     }
 
     @PostMapping("/vehicle/{vehicleId}")
     public ResponseEntity<InsuranceDTO> createInsurance(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody InsuranceDTO dto) {
         Insurance insurance = toEntity(dto);
         Insurance saved = insuranceService.createInsurance(vehicleId, insurance);
@@ -32,7 +32,7 @@ public class InsuranceController {
 
     @PutMapping("/vehicle/{vehicleId}")
     public ResponseEntity<InsuranceDTO> updateInsurance(
-            @PathVariable Long vehicleId,
+            @PathVariable("vehicleId") Long vehicleId,
             @RequestBody InsuranceDTO dto) {
         Insurance details = toEntity(dto);
         Insurance updated = insuranceService.updateInsurance(vehicleId, details);
@@ -40,7 +40,7 @@ public class InsuranceController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteInsurance(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteInsurance(@PathVariable("id") Long id) {
         insuranceService.deleteInsurance(id);
         return ResponseEntity.noContent().build();
     }
@@ -53,7 +53,7 @@ public class InsuranceController {
                 .expiryDate(i.getExpiryDate())
                 .familyDetails(i.getFamilyDetails())
                 .bankDetails(i.getBankDetails())
-                .vehicleId(i.getVehicle().getId())
+                .vehicleId(i.getVehicle() != null ? i.getVehicle().getId() : null)
                 .build();
     }
 
