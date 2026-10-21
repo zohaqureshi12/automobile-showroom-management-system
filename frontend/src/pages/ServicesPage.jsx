@@ -6,8 +6,13 @@ import {
   deleteService,
   getShowrooms,
   getCustomers,
+  fireToast,
 } from "../services/api";
 import Modal from "../components/Modal";
+import {
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 const emptyService = {
   customerId: "",
@@ -65,6 +70,7 @@ export default function ServicesPage() {
       await createService(payload);
       setForm({ ...emptyService });
       setModal(false);
+      fireToast("Service ticket created successfully!", "success");
       loadServices();
     } catch {
       alert("Failed to log service ticket");
@@ -74,12 +80,13 @@ export default function ServicesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this service ticket?")) return;
+    if (!confirm("Are you sure you want to delete this service ticket?")) return;
     try {
       await deleteService(id);
+      fireToast("Service ticket deleted", "info");
       loadServices();
     } catch {
-      alert("Failed to delete ticket");
+      alert("Failed to delete service ticket");
     }
   };
 
@@ -130,104 +137,123 @@ export default function ServicesPage() {
     );
   });
 
+  const getDeliveryStatusBadge = (deliveryDate) => {
+    if (!deliveryDate) {
+      return (
+        <span className="badge badge-info">
+          🔧 In Progress
+        </span>
+      );
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = deliveryDate.includes("T")
+      ? new Date(deliveryDate)
+      : new Date(`${deliveryDate}T00:00:00`);
+
+    if (targetDate < today) {
+      return (
+        <span className="badge badge-success">
+          ✓ Delivered ({deliveryDate})
+        </span>
+      );
+    }
+
+    return (
+      <span className="badge badge-warning">
+        🕒 Due: {deliveryDate}
+      </span>
+    );
+  };
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Service Center</h1>
-          <p className="subtitle">Manage service tickets and repairs</p>
+          <h1>Service & Repair Center</h1>
+          <p className="subtitle">Manage workshop tickets, vehicle servicing jobs, and estimated delivery dates</p>
         </div>
         <button className="btn btn-primary" onClick={() => setModal(true)}>
-          + New Service Ticket
+          <Plus size={16} />
+          New Service Ticket
         </button>
       </div>
 
       {/* Search and Showroom Filter Row */}
-      <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
+      <div className="search-bar-wrap">
         <input
           type="text"
-          placeholder="🔍 Search customer, showroom, issue, price, date..."
+          placeholder="🔍 Search client, showroom, issue, price, date..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: "260px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "10px",
-            padding: "10px 16px",
-            color: "#fff",
-            fontSize: "0.9rem",
-          }}
+          className="search-input"
         />
 
-        <div className="filter-bar" style={{ margin: 0 }}>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="filter-select"
-            style={{
-              background: "#111827",
-              border: "1px solid #1f2937",
-              borderRadius: "10px",
-              padding: "10px 16px",
-              color: "#fff",
-            }}
-          >
-            <option value="">All Showrooms</option>
-            {showrooms.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="">All Service Centers</option>
+          {showrooms.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
-        <div className="loader">Loading…</div>
+        <div className="loader">Loading service center tickets…</div>
       ) : filteredServices.length === 0 ? (
         <div className="empty-state">
           <span className="empty-icon">🔧</span>
-          <p>{searchTerm ? "No matching service tickets found." : "No service tickets found."}</p>
+          <p>{searchTerm ? "No matching service tickets found." : "No active maintenance tickets."}</p>
         </div>
       ) : (
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>#</th>
-                <th>CUSTOMER</th>
-                <th>SHOWROOM</th>
-                <th>ISSUE</th>
-                <th>PRICE</th>
-                <th>ENTRY DATE</th>
-                <th>DELIVERY DATE</th>
-                <th>ACTIONS</th>
+                <th>Ticket ID</th>
+                <th>Client</th>
+                <th>Service Center</th>
+                <th>Service Issue / Description</th>
+                <th>Est. Price</th>
+                <th>Logged Date</th>
+                <th>Delivery Schedule</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredServices.map((s, i) => (
                 <tr key={s.id || i}>
-                  <td className="text-muted">{s.id || i + 1}</td>
-                  <td className="fw-medium">{getCustomerLabel(s)}</td>
+                  <td className="text-muted" style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                    SRV-{s.id || i + 1}
+                  </td>
+                  <td className="fw-medium" style={{ color: "#ffffff" }}>{getCustomerLabel(s)}</td>
                   <td>
                     <span className="badge badge-info">{getShowroomLabel(s)}</span>
                   </td>
-                  <td>{s.issue || "—"}</td>
-                  <td className="fw-medium">₹{Number(s.price || 0).toLocaleString("en-IN")}</td>
-                  <td>{s.entryDate || "—"}</td>
                   <td>
-                    <span className="badge badge-warning">
-                      {s.deliveryDate || "Pending"}
-                    </span>
+                    <div style={{ maxWidth: "340px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {s.issue || "General maintenance"}
+                    </div>
+                  </td>
+                  <td className="fw-bold" style={{ color: "#10b981", fontFamily: "JetBrains Mono, monospace" }}>
+                    ₹{Number(s.price || 0).toLocaleString("en-IN")}
+                  </td>
+                  <td style={{ color: "#94a3b8", fontSize: "0.85rem" }}>{s.entryDate || "—"}</td>
+                  <td>
+                    {getDeliveryStatusBadge(s.deliveryDate)}
                   </td>
                   <td>
                     <button
                       className="btn btn-sm btn-ghost"
                       onClick={() => handleDelete(s.id)}
+                      title="Delete ticket"
                     >
-                      🗑️
+                      <Trash2 size={15} color="#f43f5e" />
                     </button>
                   </td>
                 </tr>
@@ -241,19 +267,19 @@ export default function ServicesPage() {
       <Modal
         isOpen={modal}
         onClose={() => setModal(false)}
-        title="Log New Service Ticket"
+        title="Open New Workshop Service Ticket"
       >
         <form onSubmit={handleSubmit} className="form">
           <div className="form-grid">
             <label>
-              Customer
+              Client
               <select
                 name="customerId"
                 value={form.customerId}
                 onChange={handleChange}
                 required
               >
-                <option value="">Select customer…</option>
+                <option value="">Select client…</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.firstName
@@ -265,14 +291,14 @@ export default function ServicesPage() {
             </label>
 
             <label>
-              Showroom
+              Service Center Branch
               <select
                 name="showroomId"
                 value={form.showroomId}
                 onChange={handleChange}
                 required
               >
-                <option value="">Select showroom…</option>
+                <option value="">Select branch…</option>
                 {showrooms.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -290,20 +316,20 @@ export default function ServicesPage() {
               onChange={handleChange}
               rows="3"
               required
-              placeholder="e.g. 10,000 km periodic service & brake oil flush"
+              placeholder="e.g. 10,000 km scheduled service, engine oil replacement, and brake pad inspection"
             />
           </label>
 
           <div className="form-grid">
             <label>
-              Estimated Price (₹)
+              Estimated Service Price (₹)
               <input
                 name="price"
                 type="number"
                 value={form.price}
                 onChange={handleChange}
                 required
-                placeholder="e.g. 3500"
+                placeholder="e.g. 6500"
               />
             </label>
 
@@ -338,7 +364,7 @@ export default function ServicesPage() {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Create Ticket"}
+              {saving ? "Creating Ticket…" : "Generate Ticket"}
             </button>
           </div>
         </form>

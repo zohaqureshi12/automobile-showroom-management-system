@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
-import { getShowrooms, createShowroom, deleteShowroom } from "../services/api";
+import { getShowrooms, createShowroom, deleteShowroom, fireToast } from "../services/api";
 import Modal from "../components/Modal";
+import {
+  Building2,
+  MapPin,
+  UserCheck,
+  Users,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
-const empty = { name: "", address: "", manager: "", salesExecutive: "" };
+const emptyShowroom = { name: "", address: "", manager: "", salesExecutive: "" };
 
 export default function ShowroomsPage() {
   const [rows, setRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ ...empty });
+  const [form, setForm] = useState({ ...emptyShowroom });
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -30,20 +38,22 @@ export default function ShowroomsPage() {
     setSaving(true);
     try {
       await createShowroom(form);
-      setForm({ ...empty });
+      setForm({ ...emptyShowroom });
       setModal(false);
+      fireToast("Showroom branch created successfully!", "success");
       load();
     } catch {
-      alert("Failed to create showroom");
+      alert("Failed to create showroom branch");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this showroom?")) return;
+    if (!confirm("Are you sure you want to delete this showroom location?")) return;
     try {
       await deleteShowroom(id);
+      fireToast("Showroom branch removed", "info");
       load();
     } catch {
       alert("Failed to delete showroom");
@@ -63,65 +73,85 @@ export default function ShowroomsPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Showrooms</h1>
-          <p className="subtitle">Manage your dealership locations</p>
+          <h1>Dealership Showrooms</h1>
+          <p className="subtitle">Manage physical branches, local territory managers, and showroom facilities</p>
         </div>
         <button className="btn btn-primary" onClick={() => setModal(true)}>
-          + Add Showroom
+          <Plus size={16} />
+          Add Showroom
         </button>
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="search-bar-wrap">
         <input
           type="text"
-          placeholder="🔍 Search showroom name, city, manager, sales executive..."
+          placeholder="🔍 Search showroom name, city, address, branch manager, sales executive..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: "450px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "10px",
-            padding: "10px 16px",
-            color: "#fff",
-            fontSize: "0.9rem",
-          }}
+          className="search-input"
+          style={{ maxWidth: "560px" }}
         />
       </div>
 
       {loading ? (
-        <div className="loader">Loading…</div>
+        <div className="loader">Loading showroom branches…</div>
       ) : filteredRows.length === 0 ? (
         <div className="empty-state">
           <span className="empty-icon">🏢</span>
-          <p>{searchTerm ? "No matching showrooms found." : "No showrooms found."}</p>
+          <p>{searchTerm ? "No matching showrooms found." : "No showrooms registered in system."}</p>
         </div>
       ) : (
         <div className="card-grid">
           {filteredRows.map((s) => (
             <div className="card" key={s.id}>
               <div className="card-header">
-                <h3>{s.name}</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      background: "rgba(56, 189, 248, 0.12)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#38bdf8",
+                    }}
+                  >
+                    <Building2 size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: "1.05rem", fontWeight: "700" }}>{s.name}</h3>
+                    <span style={{ fontSize: "0.75rem", color: "#64748b", fontFamily: "JetBrains Mono, monospace" }}>
+                      BRANCH #{s.id}
+                    </span>
+                  </div>
+                </div>
                 <button
                   className="btn btn-ghost btn-sm"
-                  title="Delete"
+                  title="Delete showroom"
                   onClick={() => handleDelete(s.id)}
                 >
-                  🗑️
+                  <Trash2 size={16} color="#f43f5e" />
                 </button>
               </div>
               <div className="card-body">
                 <div className="info-row">
-                  <span className="info-label">📍 Address</span>
-                  <span>{s.address || "—"}</span>
+                  <span className="info-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <MapPin size={15} color="#38bdf8" /> Location
+                  </span>
+                  <span style={{ fontWeight: "500", textAlign: "right" }}>{s.address || "—"}</span>
                 </div>
                 <div className="info-row">
-                  <span className="info-label">👔 Manager</span>
-                  <span>{s.manager || s.managerName || "—"}</span>
+                  <span className="info-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <UserCheck size={15} color="#10b981" /> Branch Manager
+                  </span>
+                  <span style={{ color: "#f8fafc", fontWeight: "600" }}>{s.manager || s.managerName || "—"}</span>
                 </div>
                 <div className="info-row">
-                  <span className="info-label">🤝 Sales Exec</span>
+                  <span className="info-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Users size={15} color="#a855f7" /> Sales Executive
+                  </span>
                   <span>{s.salesExecutive || "—"}</span>
                 </div>
               </div>
@@ -130,51 +160,54 @@ export default function ShowroomsPage() {
         </div>
       )}
 
+      {/* Add Showroom Modal */}
       <Modal
         isOpen={modal}
         onClose={() => setModal(false)}
-        title="Add New Showroom"
+        title="Register New Dealership Branch"
       >
         <form onSubmit={handleSubmit} className="form">
           <label>
-            Showroom Name
+            Showroom / Branch Name
             <input
               name="name"
               value={form.name}
               onChange={handleChange}
               required
-              placeholder="e.g. Star Auto Deals"
+              placeholder="e.g. Metro Star Auto Lounge"
             />
           </label>
           <label>
-            Address
+            Physical Address & City
             <input
               name="address"
               value={form.address}
               onChange={handleChange}
               required
-              placeholder="e.g. Freeganj, Ujjain"
+              placeholder="e.g. Ring Road Square, Indore"
             />
           </label>
-          <label>
-            Manager Name
-            <input
-              name="manager"
-              value={form.manager}
-              onChange={handleChange}
-              required
-              placeholder="e.g. Riya Deshmukh"
-            />
-          </label>
-          <label>
-            Sales Executive
-            <input
-              name="salesExecutive"
-              value={form.salesExecutive}
-              onChange={handleChange}
-              placeholder="e.g. Jane Doe"
-            />
-          </label>
+          <div className="form-grid">
+            <label>
+              Branch Manager Name
+              <input
+                name="manager"
+                value={form.manager}
+                onChange={handleChange}
+                required
+                placeholder="e.g. Riya Deshmukh"
+              />
+            </label>
+            <label>
+              Lead Sales Executive
+              <input
+                name="salesExecutive"
+                value={form.salesExecutive}
+                onChange={handleChange}
+                placeholder="e.g. Jane Doe"
+              />
+            </label>
+          </div>
           <div className="form-actions">
             <button
               type="button"
@@ -184,7 +217,7 @@ export default function ShowroomsPage() {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Create Showroom"}
+              {saving ? "Registering…" : "Register Branch"}
             </button>
           </div>
         </form>

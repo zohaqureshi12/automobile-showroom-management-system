@@ -11,21 +11,32 @@ export const onToast = (cb) => {
   toastListeners.push(cb);
   return () => { toastListeners = toastListeners.filter((l) => l !== cb); };
 };
-const fireToast = (msg, type = "error") =>
+export const fireToast = (msg, type = "error") =>
   toastListeners.forEach((cb) => cb({ msg, type, id: Date.now() }));
 
 // ── Axios Response Interceptor ───────────────────────────────
 API.interceptors.response.use(
   (res) => res,
   (err) => {
+    if (err.config?.skipToast) {
+      return Promise.reject(err);
+    }
     const status = err.response?.status;
-    const msg =
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      (status === 404 ? "Resource not found" :
-        status === 500 ? "Internal server error" :
-          err.message || "Network error");
-    fireToast(msg, "error");
+    const isOptional404 =
+      status === 404 &&
+      (err.config?.silent404 ||
+        err.config?.url?.includes("/tax/vehicle/") ||
+        err.config?.url?.includes("/insurance/vehicle/"));
+
+    if (!isOptional404) {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        (status === 404 ? "Resource not found" :
+          status === 500 ? "Internal server error" :
+            err.message || "Network error");
+      fireToast(msg, "error");
+    }
     return Promise.reject(err);
   }
 );
@@ -45,10 +56,14 @@ export const getVehiclesByShowroom = (showroomId) =>
   API.get(`/vehicles/showroom/${showroomId}`);
 export const createVehicle = (data) => {
   const showroomId = data.showroomId || (data.showroom && data.showroom.id) || data.showroom;
-  return API.post(`/vehicles?showroomId=${showroomId}`, data);
+  const payload = {
+    ...data,
+    ...(data.color && !data.colour ? { colour: data.color } : {}),
+  };
+  return API.post(`/vehicles?showroomId=${showroomId}`, payload);
 };
 export const updateVehicle = (id, data) => API.put(`/vehicles/${id}`, data);
-export const deleteVehicle = (id) => API.delete(`/vehicles/${id}`);
+export const deleteVehicle = (id) => API.delete(`/vehicles/${id}`, { skipToast: true });
 
 // ── Features ───────────────────────────────────────────────
 export const getFeaturesByVehicle = (vehicleId) =>
@@ -56,14 +71,14 @@ export const getFeaturesByVehicle = (vehicleId) =>
 export const createFeature = (data) => API.post("/features", data);
 
 // ── Tax ────────────────────────────────────────────────────
-export const getTaxByVehicle = (vehicleId) =>
-  API.get(`/tax/vehicle/${vehicleId}`);
-export const createTax = (data) => API.post("/tax", data);
+export const getTaxByVehicle = (id) => API.get(`/tax/vehicle/${id}`);
+export const createTax = (id, data) => API.post(`/tax/vehicle/${id}`, data);
+export const updateTax = (id, data) => API.put(`/tax/vehicle/${id}`, data);
 
 // ── Insurance ──────────────────────────────────────────────
-export const getInsuranceByVehicle = (vehicleId) =>
-  API.get(`/insurance/vehicle/${vehicleId}`);
-export const createInsurance = (data) => API.post("/insurance", data);
+export const getInsuranceByVehicle = (id) => API.get(`/insurance/vehicle/${id}`);
+export const createInsurance = (id, data) => API.post(`/insurance/vehicle/${id}`, data);
+export const updateInsurance = (id, data) => API.put(`/insurance/vehicle/${id}`, data);
 
 // ── Customers ──────────────────────────────────────────────
 export const getCustomers = () => API.get("/customers");

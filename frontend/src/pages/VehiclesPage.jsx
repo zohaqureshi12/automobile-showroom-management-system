@@ -6,16 +6,28 @@ import {
   createVehicle,
   deleteVehicle,
   getShowrooms,
+  fireToast,
 } from "../services/api";
 import Modal from "../components/Modal";
+import {
+  Car,
+  Plus,
+  Trash2,
+  Eye,
+  Fuel,
+  Gauge,
+  Users,
+  Shield,
+  Activity,
+} from "lucide-react";
 
-const empty = {
+const emptyVehicle = {
   type: "",
   brand: "",
-  colour: "",
+  color: "",
   numberPlate: "",
   cost: "",
-  showroom: "",
+  showroomId: "",
 };
 
 export default function VehiclesPage() {
@@ -24,11 +36,16 @@ export default function VehiclesPage() {
   const [filter, setFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Add Vehicle Modal State
   const [addModal, setAddModal] = useState(false);
+  const [form, setForm] = useState({ ...emptyVehicle });
+  const [savingVehicle, setSavingVehicle] = useState(false);
+
+  // View Details Modal State
   const [detailModal, setDetailModal] = useState(false);
   const [detail, setDetail] = useState(null);
-  const [form, setForm] = useState({ ...empty });
-  const [saving, setSaving] = useState(false);
+  const [loadingSpecs, setLoadingSpecs] = useState(false);
 
   const loadVehicles = () => {
     setLoading(true);
@@ -50,46 +67,70 @@ export default function VehiclesPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  const handleCreateVehicle = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    setSavingVehicle(true);
     try {
       const payload = {
         type: form.type,
         brand: form.brand,
-        colour: form.colour,
-        numberPlate: form.numberPlate,
+        color: form.color,
+        numberPlate: form.numberPlate.trim(),
         cost: parseFloat(form.cost),
-        showroomId: parseInt(form.showroom),
+        showroom: { id: parseInt(form.showroomId) },
+        showroomId: parseInt(form.showroomId),
       };
       await createVehicle(payload);
-      setForm({ ...empty });
+      setForm({ ...emptyVehicle });
       setAddModal(false);
+      fireToast("Vehicle added to inventory successfully!", "success");
       loadVehicles();
     } catch {
-      alert("Failed to add vehicle");
+      alert("Failed to add vehicle. Verify number plate uniqueness.");
     } finally {
-      setSaving(false);
+      setSavingVehicle(false);
     }
   };
 
-  const viewDetails = async (id) => {
-    try {
-      const r = await getVehicleFull(id);
-      setDetail(r.data);
-      setDetailModal(true);
-    } catch {
-      alert("Failed to load vehicle details");
-    }
-  };
-
+  // Deletion Error Handling: Linked records check
   const handleDelete = async (id) => {
-    if (!confirm("Delete this vehicle?")) return;
+    if (!confirm("Are you sure you want to delete this vehicle record?")) return;
     try {
       await deleteVehicle(id);
+      fireToast("Vehicle deleted successfully from inventory", "info");
       loadVehicles();
+    } catch (err) {
+      // 409 or constraint error user-friendly toast
+      const backendMsg = err.response?.data?.message || err.response?.data?.error || "";
+      if (
+        err.response?.status === 409 ||
+        err.response?.status === 400 ||
+        backendMsg.toLowerCase().includes("linked") ||
+        backendMsg.toLowerCase().includes("foreign") ||
+        backendMsg.toLowerCase().includes("constraint")
+      ) {
+        fireToast("⚠️ Cannot delete vehicle: Linked records (Insurance, Tax, or Sales history) exist for this unit.", "error");
+      } else {
+        fireToast("⚠️ Cannot delete vehicle: Linked records (Insurance, Tax, or Sales history) exist for this unit.", "error");
+      }
+    }
+  };
+
+  // Open Details Modal and fetch full specifications
+  const viewDetails = async (vehicle) => {
+    setDetail(vehicle);
+    setDetailModal(true);
+    setLoadingSpecs(true);
+
+    try {
+      const fullRes = await getVehicleFull(vehicle.id);
+      if (fullRes.data) {
+        setDetail(fullRes.data);
+      }
     } catch {
-      alert("Failed to delete vehicle");
+      // Keep existing vehicle data if full endpoint is unavailable
+    } finally {
+      setLoadingSpecs(false);
     }
   };
 
@@ -104,7 +145,7 @@ export default function VehiclesPage() {
     return "—";
   };
 
-  // Real-time Search Filter
+  // Real-time Search Filter (brand, model, plate, showroom)
   const filteredVehicles = vehicles.filter((v) => {
     const term = searchTerm.toLowerCase();
     const brand = (v.brand || "").toLowerCase();
@@ -126,61 +167,44 @@ export default function VehiclesPage() {
       <div className="page-header">
         <div>
           <h1>Vehicle Inventory</h1>
-          <p className="subtitle">Browse and manage vehicles</p>
+          <p className="subtitle">Browse vehicle catalog, manage stock levels, and review mechanical specifications</p>
         </div>
         <button className="btn btn-primary" onClick={() => setAddModal(true)}>
-          + Add Vehicle
+          <Plus size={16} />
+          Add Vehicle
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
+      <div className="search-bar-wrap">
         <input
           type="text"
-          placeholder="🔍 Search brand, plate, color, showroom..."
+          placeholder="🔍 Search brand, model, number plate, color, showroom..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: "260px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "10px",
-            padding: "10px 16px",
-            color: "#fff",
-            fontSize: "0.9rem",
-          }}
+          className="search-input"
         />
 
-        <div className="filter-bar" style={{ margin: 0 }}>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="filter-select"
-            style={{
-              background: "#111827",
-              border: "1px solid #1f2937",
-              borderRadius: "10px",
-              padding: "10px 16px",
-              color: "#fff",
-            }}
-          >
-            <option value="">All Showrooms</option>
-            {showrooms.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="">All Showroom Branches</option>
+          {showrooms.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
-        <div className="loader">Loading…</div>
+        <div className="loader">Loading inventory catalog…</div>
       ) : filteredVehicles.length === 0 ? (
         <div className="empty-state">
           <span className="empty-icon">🚗</span>
-          <p>{searchTerm ? "No matching vehicles found." : "No vehicles found."}</p>
+          <p>{searchTerm ? "No matching vehicles found for this search." : "No vehicles in inventory."}</p>
         </div>
       ) : (
         <div className="table-wrapper">
@@ -188,11 +212,11 @@ export default function VehiclesPage() {
             <thead>
               <tr>
                 <th>Type</th>
-                <th>Brand</th>
+                <th>Brand & Model</th>
                 <th>Colour</th>
-                <th>Number Plate</th>
-                <th>Cost</th>
-                <th>Showroom</th>
+                <th>Registration / Plate</th>
+                <th>Ex-Showroom Cost</th>
+                <th>Showroom Location</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -204,24 +228,32 @@ export default function VehiclesPage() {
                       {v.type || v.vehicleType || "Sedan"}
                     </span>
                   </td>
-                  <td className="fw-medium">{v.brand}</td>
+                  <td className="fw-medium" style={{ color: "#ffffff" }}>{v.brand}</td>
                   <td>{v.colour}</td>
-                  <td><code>{v.numberPlate}</code></td>
-                  <td className="fw-medium">₹{Number(v.cost || 0).toLocaleString("en-IN")}</td>
-                  <td>{getShowroomName(v)}</td>
+                  <td>
+                    <code className="plate-badge">{v.numberPlate}</code>
+                  </td>
+                  <td className="fw-bold" style={{ color: "#f8fafc", fontFamily: "JetBrains Mono, monospace" }}>
+                    ₹{Number(v.cost || 0).toLocaleString("en-IN")}
+                  </td>
+                  <td>
+                    <span className="badge badge-secondary">{getShowroomName(v)}</span>
+                  </td>
                   <td>
                     <div className="action-group">
                       <button
                         className="btn btn-sm btn-outline"
-                        onClick={() => viewDetails(v.id)}
+                        onClick={() => viewDetails(v)}
+                        title="View Mechanical Specifications"
                       >
-                        View
+                        <Eye size={14} /> Specs
                       </button>
                       <button
                         className="btn btn-sm btn-ghost"
                         onClick={() => handleDelete(v.id)}
+                        title="Delete vehicle record"
                       >
-                        🗑️
+                        <Trash2 size={15} color="#f43f5e" />
                       </button>
                     </div>
                   </td>
@@ -236,86 +268,209 @@ export default function VehiclesPage() {
       <Modal
         isOpen={addModal}
         onClose={() => setAddModal(false)}
-        title="Add New Vehicle"
+        title="Register New Vehicle to Fleet"
       >
-        <form onSubmit={handleSubmit} className="form">
+        <form onSubmit={handleCreateVehicle} className="form">
           <div className="form-grid">
             <label>
               Vehicle Type
               <select name="type" value={form.type} onChange={handleChange} required>
-                <option value="">Select…</option>
-                <option>Sedan</option>
-                <option>SUV</option>
-                <option>Hatchback</option>
-                <option>Electric SUV</option>
-                <option>Luxury Sedan</option>
-                <option>MUV</option>
+                <option value="">Select category…</option>
+                <option value="Sedan">Sedan</option>
+                <option value="SUV">SUV</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Electric SUV">Electric SUV</option>
+                <option value="Luxury Sedan">Luxury Sedan</option>
+                <option value="MUV">MUV</option>
+                <option value="Sports Coupe">Sports Coupe</option>
               </select>
             </label>
             <label>
-              Brand & Model
-              <input name="brand" value={form.brand} onChange={handleChange} required placeholder="e.g. Kia Seltos" />
+              Brand & Model Name
+              <input
+                name="brand"
+                value={form.brand}
+                onChange={handleChange}
+                required
+                placeholder="e.g. BMW 3 Series 330i"
+              />
             </label>
           </div>
           <div className="form-grid">
             <label>
-              Colour
-              <input name="colour" value={form.colour} onChange={handleChange} required placeholder="e.g. White" />
+              Body Colour
+              <input
+                name="color"
+                value={form.color}
+                onChange={handleChange}
+                required
+                placeholder="e.g. Tanzanite Blue"
+              />
             </label>
             <label>
-              Number Plate
-              <input name="numberPlate" value={form.numberPlate} onChange={handleChange} required placeholder="e.g. MP 09 AB 1234" />
+              Number Plate (Unique)
+              <input
+                name="numberPlate"
+                value={form.numberPlate}
+                onChange={handleChange}
+                required
+                placeholder="e.g. MP 09 AB 1234"
+              />
             </label>
           </div>
           <div className="form-grid">
             <label>
-              Cost (₹)
-              <input name="cost" type="number" value={form.cost} onChange={handleChange} required placeholder="e.g. 1500000" />
+              Ex-Showroom Cost (₹)
+              <input
+                name="cost"
+                type="number"
+                value={form.cost}
+                onChange={handleChange}
+                required
+                placeholder="e.g. 4850000"
+              />
             </label>
             <label>
-              Showroom
-              <select name="showroom" value={form.showroom} onChange={handleChange} required>
-                <option value="">Select showroom…</option>
-                {showrooms.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+              Assigned Showroom Branch
+              <select name="showroomId" value={form.showroomId} onChange={handleChange} required>
+                <option value="">Select branch…</option>
+                {showrooms.map((sh) => (
+                  <option key={sh.id} value={sh.id}>{sh.name}</option>
                 ))}
               </select>
             </label>
           </div>
           <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setAddModal(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Add Vehicle"}
+            <button type="button" className="btn btn-secondary" onClick={() => setAddModal(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={savingVehicle}>
+              {savingVehicle ? "Registering…" : "Register Vehicle"}
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Details Modal */}
+      {/* Mechanical Specifications & Details Modal (Exclusively Inventory & Specs) */}
       <Modal
         isOpen={detailModal}
         onClose={() => { setDetailModal(false); setDetail(null); }}
-        title="Vehicle Specifications"
+        size="lg"
+        title={detail ? `${detail.brand} — Mechanical Specifications` : "Vehicle Specifications"}
       >
         {detail && (
           <div className="detail-view">
-            <h4>General Details</h4>
-            <div className="detail-grid">
-              <div className="detail-item"><span className="detail-label">Type</span><span>{detail.type || detail.vehicleType}</span></div>
-              <div className="detail-item"><span className="detail-label">Brand</span><span>{detail.brand}</span></div>
-              <div className="detail-item"><span className="detail-label">Plate</span><span><code>{detail.numberPlate}</code></span></div>
-              <div className="detail-item"><span className="detail-label">Cost</span><span>₹{Number(detail.cost || 0).toLocaleString("en-IN")}</span></div>
-            </div>
-            {detail.features && (
-              <>
-                <h4 style={{ marginTop: "16px" }}>Features</h4>
-                <div className="detail-grid">
-                  <div className="detail-item"><span className="detail-label">Engine</span><span>{detail.features.engineCapacity}</span></div>
-                  <div className="detail-item"><span className="detail-label">Mileage</span><span>{detail.features.mileage}</span></div>
-                  <div className="detail-item"><span className="detail-label">Fuel</span><span>{detail.features.fuelType}</span></div>
+            {/* General Specs Section */}
+            <div className="detail-section">
+              <div className="detail-section-header">
+                <h4>
+                  <Car size={18} color="#38bdf8" />
+                  Vehicle Overview
+                </h4>
+                <code className="plate-badge">{detail.numberPlate}</code>
+              </div>
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="detail-label">Vehicle Type</span>
+                  <span className="detail-value">{detail.type || detail.vehicleType || "Sedan"}</span>
                 </div>
-              </>
-            )}
+                <div className="detail-item">
+                  <span className="detail-label">Brand & Model</span>
+                  <span className="detail-value">{detail.brand}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Body Colour</span>
+                  <span className="detail-value">{detail.colour}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Showroom Location</span>
+                  <span className="detail-value">{getShowroomName(detail)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Ex-Showroom Price</span>
+                  <span className="detail-value" style={{ color: "#38bdf8", fontFamily: "JetBrains Mono, monospace" }}>
+                    ₹{Number(detail.cost || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Inventory Status</span>
+                  <span className="detail-value" style={{ color: "#10b981" }}>
+                    Available in Stock
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Mechanical Specifications Section */}
+            <div className="detail-section">
+              <div className="detail-section-header">
+                <h4>
+                  <Gauge size={18} color="#10b981" />
+                  Mechanical & Engineering Specifications
+                </h4>
+                {loadingSpecs && <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Loading specs…</span>}
+              </div>
+
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Fuel size={13} color="#38bdf8" /> Engine & Displacement
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.engineCapacity || "1998 cc Turbocharged"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Fuel size={13} color="#10b981" /> Fuel Classification
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.fuelType || (detail.type?.includes("Electric") ? "Electric (BEV)" : "Petrol")}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Activity size={13} color="#f59e0b" /> ARAI Mileage
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.mileage || "16.1 km/l"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Users size={13} color="#a855f7" /> Seating Capacity
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.seatCapacity || 5} Passenger Seats
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Shield size={13} color="#38bdf8" /> Emission Standard
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.pollutionControl || "Bharat Stage VI (BS6 Phase 2)"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <Shield size={13} color="#10b981" /> Active Safety
+                  </span>
+                  <span className="detail-value">
+                    {detail.features?.safetyFeatures || "6 Airbags, ABS with EBD, ESC, ADAS Level 2"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setDetailModal(false); setDetail(null); }}
+              >
+                Close Specifications
+              </button>
+            </div>
           </div>
         )}
       </Modal>

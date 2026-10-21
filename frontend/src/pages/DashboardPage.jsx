@@ -4,7 +4,6 @@ import {
   getVehicles,
   getServices,
   getShowrooms,
-  getCustomers,
 } from "../services/api";
 import Modal from "../components/Modal";
 import {
@@ -18,9 +17,105 @@ import {
   Pie,
   Cell,
   Legend,
+  CartesianGrid,
 } from "recharts";
+import {
+  TrendingUp,
+  Car,
+  ShoppingBag,
+  Wrench,
+  ArrowUpRight,
+  Building2,
+  ChevronRight,
+} from "lucide-react";
 
-const COLORS = ["#06b6d4", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6", "#6366f1"];
+const PIE_COLORS = ["#38bdf8", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#6366f1", "#14b8a6"];
+
+// Custom Glassmorphic Tooltip for Bar Chart
+const CustomBarTooltip = ({ active, payload, _label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div
+        style={{
+          background: "rgba(15, 23, 42, 0.92)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          borderRadius: "12px",
+          padding: "10px 14px",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6)",
+        }}
+      >
+        <p style={{ color: "#94a3b8", fontSize: "0.75rem", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {data.fullName}
+        </p>
+        <p style={{ color: "#38bdf8", fontSize: "1.05rem", fontWeight: "700", fontFamily: "JetBrains Mono, monospace" }}>
+          ₹{Number(data.rawRevenue || 0).toLocaleString("en-IN")}
+        </p>
+        <span style={{ color: "#64748b", fontSize: "0.75rem" }}>
+          ({data.revenue} Lakhs)
+        </span>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom Tooltip for Pie Chart
+const CustomPieTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div
+        style={{
+          background: "rgba(15, 23, 42, 0.92)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          borderRadius: "12px",
+          padding: "10px 14px",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6)",
+        }}
+      >
+        <p style={{ color: "#fff", fontWeight: "600", fontSize: "0.85rem", marginBottom: "2px" }}>
+          {data.name}
+        </p>
+        <p style={{ color: data.payload.fill || "#38bdf8", fontSize: "0.95rem", fontWeight: "700" }}>
+          {data.value} {data.value === 1 ? "unit sold" : "units sold"}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const getDeliveryStatusBadge = (deliveryDate) => {
+  if (!deliveryDate) {
+    return (
+      <span className="badge badge-info">
+        🔧 In Progress
+      </span>
+    );
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const targetDate = deliveryDate.includes("T")
+    ? new Date(deliveryDate)
+    : new Date(`${deliveryDate}T00:00:00`);
+
+  if (targetDate < today) {
+    return (
+      <span className="badge badge-success">
+        ✓ Delivered ({deliveryDate})
+      </span>
+    );
+  }
+
+  return (
+    <span className="badge badge-warning">
+      🕒 Due: {deliveryDate}
+    </span>
+  );
+};
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -28,7 +123,6 @@ export default function DashboardPage() {
   const [vehicles, setVehicles] = useState([]);
   const [services, setServices] = useState([]);
   const [showrooms, setShowrooms] = useState([]);
-  const [customers, setCustomers] = useState([]);
 
   const [breakdownModal, setBreakdownModal] = useState(false);
   const [breakdownType, setBreakdownType] = useState("");
@@ -40,13 +134,11 @@ export default function DashboardPage() {
       getVehicles().catch(() => ({ data: [] })),
       getServices().catch(() => ({ data: [] })),
       getShowrooms().catch(() => ({ data: [] })),
-      getCustomers().catch(() => ({ data: [] })),
-    ]).then(([resSales, resVehicles, resServices, resShowrooms, resCustomers]) => {
+    ]).then(([resSales, resVehicles, resServices, resShowrooms]) => {
       setSales(resSales.data || []);
       setVehicles(resVehicles.data || []);
       setServices(resServices.data || []);
       setShowrooms(resShowrooms.data || []);
-      setCustomers(resCustomers.data || []);
       setLoading(false);
     });
   }, []);
@@ -104,7 +196,7 @@ export default function DashboardPage() {
   const barChartData = showrooms.map((sh) => {
     const rev = revenueByShowroomMap[sh.id] || 0;
     return {
-      name: sh.name.replace(" Showroom", "").replace(" Motors", ""),
+      name: sh.name.replace(" Showroom", "").replace(" Motors", "").slice(0, 14),
       fullName: sh.name,
       revenue: Math.round((rev / 100000) * 10) / 10,
       rawRevenue: rev,
@@ -170,7 +262,12 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <h1>Executive Dashboard</h1>
-          <p className="subtitle">Real-time enterprise performance metrics</p>
+          <p className="subtitle">Real-time enterprise metrics & dealership analytics</p>
+        </div>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <span className="badge badge-success" style={{ padding: "0.4rem 0.8rem" }}>
+            ● Live Sync Active
+          </span>
         </div>
       </div>
 
@@ -178,97 +275,127 @@ export default function DashboardPage() {
         <div className="loader">Loading enterprise analytics…</div>
       ) : (
         <>
+          {/* 4 Hero KPI Cards */}
           <div className="kpi-grid">
+            {/* 1. Total Revenue */}
             <div
               className="kpi-card"
-              style={{ cursor: "pointer" }}
               onClick={() => handleCardClick("revenue")}
+              title="Click for Branch Breakdown"
             >
-              <div className="kpi-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#06b6d4" }}>
-                ₹
+              <div className="kpi-icon" style={{ background: "rgba(56, 189, 248, 0.12)", color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.25)" }}>
+                <TrendingUp size={24} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div className="kpi-label">TOTAL REVENUE ↗</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="kpi-label">
+                  <span>Total Revenue</span>
+                  <ArrowUpRight size={14} color="#38bdf8" />
+                </div>
                 <div className="kpi-value">₹{totalRevenue.toLocaleString("en-IN")}</div>
-                <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  {sales.length} sales + {services.length} services
-                </span>
+                <div className="kpi-subtext">
+                  <span>{sales.length} sales + {services.length} services</span>
+                </div>
               </div>
             </div>
 
+            {/* 2. In-Stock Units */}
             <div
               className="kpi-card"
-              style={{ cursor: "pointer" }}
               onClick={() => handleCardClick("inventory")}
+              title="Click for Inventory Breakdown"
             >
-              <div className="kpi-icon" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
-                🚗
+              <div className="kpi-icon" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.25)" }}>
+                <Car size={24} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div className="kpi-label">IN-STOCK VEHICLES ↗</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="kpi-label">
+                  <span>In-Stock Units</span>
+                  <ArrowUpRight size={14} color="#10b981" />
+                </div>
                 <div className="kpi-value">{inStockVehicles.length}</div>
-                <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  {vehicles.length} total inventory
-                </span>
+                <div className="kpi-subtext">
+                  <span>out of {vehicles.length} total units</span>
+                </div>
               </div>
             </div>
 
+            {/* 3. Completed Sales */}
             <div
               className="kpi-card"
-              style={{ cursor: "pointer" }}
               onClick={() => handleCardClick("sales")}
+              title="Click for Sales Breakdown"
             >
-              <div className="kpi-icon" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#8b5cf6" }}>
-                🛒
+              <div className="kpi-icon" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#a855f7", borderColor: "rgba(168, 85, 247, 0.25)" }}>
+                <ShoppingBag size={24} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div className="kpi-label">COMPLETED SALES ↗</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="kpi-label">
+                  <span>Completed Sales</span>
+                  <ArrowUpRight size={14} color="#a855f7" />
+                </div>
                 <div className="kpi-value">{sales.length}</div>
-                <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  across {showrooms.length} showrooms
-                </span>
+                <div className="kpi-subtext">
+                  <span>across {showrooms.length} branch locations</span>
+                </div>
               </div>
             </div>
 
+            {/* 4. Service Tickets */}
             <div
               className="kpi-card"
-              style={{ cursor: "pointer" }}
               onClick={() => handleCardClick("services")}
+              title="Click for Services Breakdown"
             >
-              <div className="kpi-icon" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b" }}>
-                🔧
+              <div className="kpi-icon" style={{ background: "rgba(245, 158, 11, 0.12)", color: "#f59e0b", borderColor: "rgba(245, 158, 11, 0.25)" }}>
+                <Wrench size={24} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div className="kpi-label">SERVICE TICKETS ↗</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="kpi-label">
+                  <span>Service Tickets</span>
+                  <ArrowUpRight size={14} color="#f59e0b" />
+                </div>
                 <div className="kpi-value">{services.length}</div>
-                <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  active maintenance tickets
-                </span>
+                <div className="kpi-subtext">
+                  <span>active maintenance tickets</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="charts-grid" style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr", gap: "20px", marginTop: "24px" }}>
-            <div className="chart-card" style={{ background: "#111827", padding: "24px", borderRadius: "16px", border: "1px solid #1f2937" }}>
-              <h3 style={{ marginBottom: "16px", fontSize: "1.05rem" }}>Revenue by Showroom (₹ in Lakhs)</h3>
-              <div style={{ width: "100%", height: 300 }}>
+          {/* Recharts Analytics Grid */}
+          <div className="charts-grid">
+            {/* Bar Chart: Revenue by Showroom */}
+            <div className="chart-card">
+              <h3>
+                <span>Branch Revenue Performance (₹ Lakhs)</span>
+                <span className="badge badge-info">{showrooms.length} Branches</span>
+              </h3>
+              <div style={{ width: "100%", height: 320 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barChartData}>
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                    <YAxis stroke="#64748b" fontSize={12} unit="L" />
-                    <Tooltip
-                      formatter={(val, name, props) => [`₹${props.payload.rawRevenue.toLocaleString("en-IN")}`, "Total Revenue"]}
-                      contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
-                    />
-                    <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+                  <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="barCyanGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#0284c7" stopOpacity={0.6} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(255, 255, 255, 0.05)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748b" fontSize={11} unit="L" tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomBarTooltip />} />
+                    <Bar dataKey="revenue" fill="url(#barCyanGrad)" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="chart-card" style={{ background: "#111827", padding: "24px", borderRadius: "16px", border: "1px solid #1f2937" }}>
-              <h3 style={{ marginBottom: "16px", fontSize: "1.05rem" }}>Sales by Vehicle Brand</h3>
-              <div style={{ width: "100%", height: 300 }}>
+            {/* Donut Chart: Sales by Vehicle Brand */}
+            <div className="chart-card">
+              <h3>
+                <span>Sales Share by Brand</span>
+                <span className="badge badge-secondary">{pieChartData.length} Brands</span>
+              </h3>
+              <div style={{ width: "100%", height: 320 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -276,17 +403,23 @@ export default function DashboardPage() {
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
-                      cy="50%"
+                      cy="46%"
                       innerRadius={65}
                       outerRadius={95}
-                      paddingAngle={4}
+                      paddingAngle={5}
+                      stroke="rgba(15, 23, 42, 0.6)"
+                      strokeWidth={2}
                     >
                       {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }} />
-                    <Legend verticalAlign="bottom" height={36} />
+                    <Tooltip content={<CustomPieTooltip />} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(val) => <span style={{ color: "#94a3b8", fontSize: "0.8rem", marginRight: "12px" }}>{val}</span>}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -302,105 +435,122 @@ export default function DashboardPage() {
           setBreakdownModal(false);
           setSelectedShowroom(null);
         }}
+        size="lg"
         title={
           selectedShowroom
-            ? `${selectedShowroom.name}`
-            : `Showroom-Wise ${breakdownType === "revenue"
-              ? "Revenue Breakdown"
+            ? `${selectedShowroom.name} — Branch Metrics`
+            : `Branch Breakdown: ${breakdownType === "revenue"
+              ? "Total Revenue Generated"
               : breakdownType === "inventory"
-                ? "In-Stock Inventory"
+                ? "In-Stock Vehicle Inventory"
                 : breakdownType === "sales"
-                  ? "Completed Sales"
-                  : "Service Tickets"
+                  ? "Completed Vehicle Sales"
+                  : "Service Center Tickets"
             }`
         }
       >
         {!selectedShowroom ? (
-          <div className="table-wrapper compact">
-            <table>
-              <thead>
-                <tr>
-                  <th>Showroom</th>
-                  <th>Manager</th>
-                  {breakdownType === "revenue" && <th>Revenue Generated</th>}
-                  {breakdownType === "inventory" && <th>In Stock</th>}
-                  {breakdownType === "sales" && <th>Sales Count</th>}
-                  {breakdownType === "services" && <th>Active Tickets</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {getBreakdownData().map((sh) => (
-                  <tr
-                    key={sh.id}
-                    style={{ cursor: "pointer", transition: "background 0.2s" }}
-                    onClick={() => setSelectedShowroom(sh)}
-                    title="Click to view details"
-                  >
-                    <td className="fw-medium" style={{ color: "#38bdf8" }}>
-                      {sh.name}
-                    </td>
-                    <td className="text-muted">{sh.manager}</td>
-                    {breakdownType === "revenue" && (
-                      <td className="fw-bold" style={{ color: "#06b6d4" }}>
-                        ₹{sh.revenue.toLocaleString("en-IN")}
-                      </td>
-                    )}
-                    {breakdownType === "inventory" && (
-                      <td>
-                        <span className="badge badge-success">{sh.inStock} Units</span>
-                      </td>
-                    )}
-                    {breakdownType === "sales" && (
-                      <td>
-                        <span className="badge badge-info">{sh.salesCount} Deals</span>
-                      </td>
-                    )}
-                    {breakdownType === "services" && (
-                      <td>
-                        <span className="badge badge-warning">{sh.servicesCount} Tickets</span>
-                      </td>
-                    )}
+          <div>
+            <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: "1rem" }}>
+              Select any branch to inspect granular deals, units, and customer tickets:
+            </p>
+            <div className="table-wrapper compact">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Branch Location</th>
+                    <th>Manager</th>
+                    {breakdownType === "revenue" && <th>Revenue Generated</th>}
+                    {breakdownType === "inventory" && <th>In Stock</th>}
+                    {breakdownType === "sales" && <th>Total Deals</th>}
+                    {breakdownType === "services" && <th>Tickets</th>}
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {getBreakdownData().map((sh) => (
+                    <tr
+                      key={sh.id}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelectedShowroom(sh)}
+                    >
+                      <td className="fw-medium" style={{ color: "#38bdf8" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Building2 size={16} />
+                          <span>{sh.name}</span>
+                        </div>
+                      </td>
+                      <td className="text-muted">{sh.manager}</td>
+                      {breakdownType === "revenue" && (
+                        <td className="fw-bold" style={{ color: "#38bdf8", fontFamily: "JetBrains Mono, monospace" }}>
+                          ₹{sh.revenue.toLocaleString("en-IN")}
+                        </td>
+                      )}
+                      {breakdownType === "inventory" && (
+                        <td>
+                          <span className="badge badge-success">{sh.inStock} Units</span>
+                        </td>
+                      )}
+                      {breakdownType === "sales" && (
+                        <td>
+                          <span className="badge badge-info">{sh.salesCount} Deals</span>
+                        </td>
+                      )}
+                      {breakdownType === "services" && (
+                        <td>
+                          <span className="badge badge-warning">{sh.servicesCount} Tickets</span>
+                        </td>
+                      )}
+                      <td>
+                        <button className="btn btn-sm btn-ghost" style={{ padding: "4px 8px" }}>
+                          Inspect <ChevronRight size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", paddingBottom: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
               <button
                 className="btn btn-sm btn-secondary"
                 onClick={() => setSelectedShowroom(null)}
               >
-                ← Back to Showrooms
+                ← Back to Showrooms List
               </button>
               <span className="text-muted" style={{ fontSize: "0.85rem" }}>
-                Manager: <strong>{activeDrilldown?.manager}</strong>
+                Branch Manager: <strong style={{ color: "#f8fafc" }}>{activeDrilldown?.manager}</strong>
               </span>
             </div>
 
+            {/* Drilldown view by category */}
             {breakdownType === "services" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }}>
                 {activeDrilldown?.items.services.length === 0 ? (
-                  <p className="text-muted" style={{ textAlign: "center", padding: "20px" }}>No service tickets registered for this branch.</p>
+                  <p className="text-muted" style={{ textAlign: "center", padding: "24px" }}>
+                    No service tickets registered for this branch.
+                  </p>
                 ) : (
                   activeDrilldown?.items.services.map((srv) => (
                     <div
                       key={srv.id}
                       style={{
-                        background: "#1e293b",
-                        border: "1px solid #334155",
+                        background: "rgba(15, 23, 42, 0.7)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
                         borderRadius: "12px",
-                        padding: "16px",
+                        padding: "14px 18px",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                        <h4 style={{ color: "#f8fafc", fontSize: "0.95rem" }}>{srv.issue}</h4>
-                        <span className="badge badge-warning">{srv.deliveryDate ? `Due: ${srv.deliveryDate}` : "In Progress"}</span>
+                        <h4 style={{ color: "#f8fafc", fontSize: "0.95rem", fontWeight: "600" }}>{srv.issue}</h4>
+                        {getDeliveryStatusBadge(srv.deliveryDate)}
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
                         <span>Logged: {srv.entryDate || "Recent"}</span>
-                        <span style={{ fontSize: "1rem", fontWeight: "700", color: "#10b981" }}>
+                        <span style={{ fontSize: "1.05rem", fontWeight: "700", color: "#10b981", fontFamily: "JetBrains Mono, monospace" }}>
                           ₹{Number(srv.price || 0).toLocaleString("en-IN")}
                         </span>
                       </div>
@@ -411,24 +561,29 @@ export default function DashboardPage() {
             )}
 
             {breakdownType === "inventory" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", maxHeight: "400px", overflowY: "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", maxHeight: "420px", overflowY: "auto" }}>
                 {activeDrilldown?.items.vehicles.length === 0 ? (
-                  <p className="text-muted" style={{ textAlign: "center", gridColumn: "1 / -1", padding: "20px" }}>No units in stock at this branch.</p>
+                  <p className="text-muted" style={{ textAlign: "center", gridColumn: "1 / -1", padding: "24px" }}>
+                    No available units currently in stock at this branch.
+                  </p>
                 ) : (
                   activeDrilldown?.items.vehicles.map((v) => (
                     <div
                       key={v.id}
                       style={{
-                        background: "#1e293b",
-                        border: "1px solid #334155",
+                        background: "rgba(15, 23, 42, 0.7)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
                         borderRadius: "12px",
                         padding: "14px",
                       }}
                     >
-                      <span className="badge badge-info" style={{ marginBottom: "8px" }}>{v.type || v.vehicleType || "Sedan"}</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                        <span className="badge badge-info">{v.type || v.vehicleType || "Sedan"}</span>
+                        <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>{v.colour}</span>
+                      </div>
                       <h4 style={{ color: "#ffffff", fontSize: "1rem", marginBottom: "4px" }}>{v.brand}</h4>
-                      <code style={{ fontSize: "0.8rem", color: "#38bdf8", display: "block", marginBottom: "8px" }}>{v.numberPlate}</code>
-                      <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "#f8fafc" }}>
+                      <code className="plate-badge" style={{ display: "inline-block", marginBottom: "8px" }}>{v.numberPlate}</code>
+                      <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "#f8fafc", fontFamily: "JetBrains Mono, monospace" }}>
                         ₹{Number(v.cost || 0).toLocaleString("en-IN")}
                       </div>
                     </div>
@@ -438,16 +593,18 @@ export default function DashboardPage() {
             )}
 
             {(breakdownType === "sales" || breakdownType === "revenue") && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }}>
                 {activeDrilldown?.items.sales.length === 0 ? (
-                  <p className="text-muted" style={{ textAlign: "center", padding: "20px" }}>No completed sales recorded for this branch.</p>
+                  <p className="text-muted" style={{ textAlign: "center", padding: "24px" }}>
+                    No completed sales recorded for this branch.
+                  </p>
                 ) : (
                   activeDrilldown?.items.sales.map((s) => (
                     <div
                       key={s.id}
                       style={{
-                        background: "#1e293b",
-                        border: "1px solid #334155",
+                        background: "rgba(15, 23, 42, 0.7)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
                         borderRadius: "12px",
                         padding: "16px",
                       }}
@@ -456,12 +613,12 @@ export default function DashboardPage() {
                         <span style={{ fontWeight: "700", color: "#f8fafc", fontSize: "0.95rem" }}>
                           {s.customerName || `Customer #${s.customerId}`}
                         </span>
-                        <span style={{ fontSize: "1.05rem", fontWeight: "800", color: "#06b6d4" }}>
+                        <span style={{ fontSize: "1.05rem", fontWeight: "800", color: "#38bdf8", fontFamily: "JetBrains Mono, monospace" }}>
                           ₹{Number(s.target || 0).toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
-                        <span>Unit: <code style={{ color: "#38bdf8" }}>{s.vehicleNumberPlate || "—"}</code> • {s.date || "Completed"}</span>
+                        <span>Unit: <code className="plate-badge" style={{ fontSize: "0.75rem" }}>{s.vehicleNumberPlate || "—"}</code> • {s.date || "Completed"}</span>
                         {s.offer && <span className="badge badge-success">{s.offer}</span>}
                       </div>
                     </div>

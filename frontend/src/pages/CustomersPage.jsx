@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
-import { getCustomers, createCustomer, deleteCustomer } from "../services/api";
+import { getCustomers, createCustomer, deleteCustomer, fireToast } from "../services/api";
 import Modal from "../components/Modal";
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
-const empty = { name: "", phone: "", email: "", address: "" };
+const emptyCustomer = { name: "", phone: "", email: "", address: "" };
 
 export default function CustomersPage() {
   const [rows, setRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ ...empty });
+  const [form, setForm] = useState({ ...emptyCustomer });
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -51,20 +58,22 @@ export default function CustomersPage() {
       };
 
       await createCustomer(payload);
-      setForm({ ...empty });
+      setForm({ ...emptyCustomer });
       setModal(false);
+      fireToast("Customer profile created successfully!", "success");
       load();
     } catch {
-      alert("Failed to create customer");
+      alert("Failed to register customer profile");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this customer?")) return;
+    if (!confirm("Are you sure you want to delete this customer record?")) return;
     try {
       await deleteCustomer(id);
+      fireToast("Customer record deleted", "info");
       load();
     } catch {
       alert("Failed to delete customer");
@@ -91,35 +100,28 @@ export default function CustomersPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Customers</h1>
-          <p className="subtitle">Manage customer records</p>
+          <h1>Customer Directory</h1>
+          <p className="subtitle">Manage dealership clientele, contact channels, and KYC profiles</p>
         </div>
         <button className="btn btn-primary" onClick={() => setModal(true)}>
-          + Register Customer
+          <Plus size={16} />
+          Register Customer
         </button>
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div className="search-bar-wrap">
         <input
           type="text"
-          placeholder="🔍 Search customer name, phone, email, address..."
+          placeholder="🔍 Search customer name, phone number, email, address..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: "450px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "10px",
-            padding: "10px 16px",
-            color: "#fff",
-            fontSize: "0.9rem",
-          }}
+          className="search-input"
+          style={{ maxWidth: "560px" }}
         />
       </div>
 
       {loading ? (
-        <div className="loader">Loading…</div>
+        <div className="loader">Loading customer directory…</div>
       ) : filteredRows.length === 0 ? (
         <div className="empty-state">
           <span className="empty-icon">👥</span>
@@ -131,35 +133,77 @@ export default function CustomersPage() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Address</th>
+                <th>Client Name</th>
+                <th>Phone Number</th>
+                <th>Email Address</th>
+                <th>Residential Address</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.map((c, i) => (
                 <tr key={c.id || i}>
-                  <td className="text-muted">{i + 1}</td>
-                  <td className="fw-medium">{getCustomerFullName(c)}</td>
-                  <td>{c.phone || "—"}</td>
+                  <td className="text-muted" style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                    {i + 1}
+                  </td>
+                  <td className="fw-medium">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div
+                        style={{
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "50%",
+                          background: "rgba(56, 189, 248, 0.12)",
+                          color: "#38bdf8",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.8rem",
+                          fontWeight: "700",
+                        }}
+                      >
+                        {getCustomerFullName(c).charAt(0).toUpperCase()}
+                      </div>
+                      <span style={{ color: "#ffffff" }}>{getCustomerFullName(c)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {c.phone ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#94a3b8" }}>
+                        <Phone size={13} color="#38bdf8" />
+                        {c.phone}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td>
                     {c.email ? (
-                      <a href={`mailto:${c.email}`} className="link">
+                      <a href={`mailto:${c.email}`} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Mail size={13} />
                         {c.email}
                       </a>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td>{c.address || "—"}</td>
+                  <td style={{ color: "#94a3b8" }}>
+                    {c.address ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <MapPin size={13} color="#10b981" />
+                        {c.address}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td>
                     <button
                       className="btn btn-sm btn-ghost"
                       onClick={() => handleDelete(c.id)}
+                      title="Delete customer"
                     >
-                      🗑️
+                      <Trash2 size={15} color="#f43f5e" />
                     </button>
                   </td>
                 </tr>
@@ -169,14 +213,15 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {/* Register Customer Modal */}
       <Modal
         isOpen={modal}
         onClose={() => setModal(false)}
-        title="Register New Customer"
+        title="Register New Client Profile"
       >
         <form onSubmit={handleSubmit} className="form">
           <label>
-            Full Name
+            Full Name (First and Last)
             <input
               name="name"
               value={form.name}
@@ -185,27 +230,29 @@ export default function CustomersPage() {
               placeholder="e.g. Rajesh Kumar or Hermione Granger"
             />
           </label>
+          <div className="form-grid">
+            <label>
+              Phone Number
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="e.g. +91 98765 43210"
+              />
+            </label>
+            <label>
+              Email Address
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="e.g. client@example.com"
+              />
+            </label>
+          </div>
           <label>
-            Phone Number
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="e.g. +91 98765 43210"
-            />
-          </label>
-          <label>
-            Email
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="e.g. rajesh@email.com"
-            />
-          </label>
-          <label>
-            Address
+            Mailing / Residential Address
             <input
               name="address"
               value={form.address}
@@ -222,7 +269,7 @@ export default function CustomersPage() {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Register Customer"}
+              {saving ? "Registering…" : "Register Customer"}
             </button>
           </div>
         </form>

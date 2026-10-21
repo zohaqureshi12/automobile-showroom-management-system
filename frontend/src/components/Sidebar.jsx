@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -9,7 +9,6 @@ import {
   Wrench,
   Gauge,
   Menu,
-  X,
 } from "lucide-react";
 
 const navItems = [
@@ -26,7 +25,6 @@ const navItems = [
 
 export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
 
   const closeMobile = () => setMobileOpen(false);
 
