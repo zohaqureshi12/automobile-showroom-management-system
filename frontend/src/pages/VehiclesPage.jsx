@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   getVehicles,
+  getSales,
   getVehiclesByShowroom,
   getVehicleFull,
   createVehicle,
@@ -32,6 +33,7 @@ const emptyVehicle = {
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState([]);
+  const [soldVehicleIds, setSoldVehicleIds] = useState(new Set());
   const [showrooms, setShowrooms] = useState([]);
   const [filter, setFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,6 +62,17 @@ export default function VehiclesPage() {
     getShowrooms()
       .then((r) => setShowrooms(r.data || []))
       .catch(() => setShowrooms([]));
+  }, []);
+  useEffect(() => {
+    getSales()
+      .then((r) => {
+        const ids = (r.data || [])
+          .map((sale) => Number(sale.vehicleId))
+          .filter((id) => Number.isFinite(id));
+
+        setSoldVehicleIds(new Set(ids));
+      })
+      .catch(() => setSoldVehicleIds(new Set()));
   }, []);
 
   useEffect(loadVehicles, [filter]);
@@ -391,11 +404,20 @@ export default function VehiclesPage() {
                   <span className="detail-value" style={{ color: "#38bdf8", fontFamily: "JetBrains Mono, monospace" }}>
                     ₹{Number(detail.cost || 0).toLocaleString("en-IN")}
                   </span>
-                </div>
+                </div>    
                 <div className="detail-item">
                   <span className="detail-label">Inventory Status</span>
-                  <span className="detail-value" style={{ color: "#10b981" }}>
-                    Available in Stock
+                  <span
+                    className="detail-value"
+                    style={{
+                      color: soldVehicleIds.has(Number(detail.id))
+                        ? "#f43f5e"
+                        : "#10b981",
+                    }}
+                  >
+                    {soldVehicleIds.has(Number(detail.id))
+                      ? "Sold"
+                      : "Available in Stock"}
                   </span>
                 </div>
               </div>

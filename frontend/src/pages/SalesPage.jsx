@@ -636,7 +636,7 @@ export default function SalesPage() {
                     <option value="CASH">Cash</option>
                     <option value="LOAN">Auto Loan / Financing</option>
                     <option value="CHEQUE">Bank Cheque / DD</option>
-                    <option value="ONLINE">NEFT / RTGS / UPI</option>
+                    <option value="NEFT_RTGS_UPI">NEFT / RTGS / UPI</option>
                   </select>
                 </label>
                 <label>
