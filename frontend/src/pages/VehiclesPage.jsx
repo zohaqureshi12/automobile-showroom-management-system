@@ -227,7 +227,6 @@ export default function VehiclesPage() {
                 <th>Type</th>
                 <th>Brand & Model</th>
                 <th>Colour</th>
-                <th>Registration / Plate</th>
                 <th>Ex-Showroom Cost</th>
                 <th>Showroom Location</th>
                 <th>Actions</th>
@@ -243,9 +242,7 @@ export default function VehiclesPage() {
                   </td>
                   <td className="fw-medium" style={{ color: "#ffffff" }}>{v.brand}</td>
                   <td>{v.colour}</td>
-                  <td>
-                    <code className="plate-badge">{v.numberPlate}</code>
-                  </td>
+                  
                   <td className="fw-bold" style={{ color: "#f8fafc", fontFamily: "JetBrains Mono, monospace" }}>
                     ₹{Number(v.cost || 0).toLocaleString("en-IN")}
                   </td>
