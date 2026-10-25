@@ -605,8 +605,8 @@ export default function SalesPage() {
                       <tr key={p.id || i}>
                         <td>
                           <span className={`badge ${(p.method || p.paymentMode) === "CASH" ? "badge-success" :
-                              (p.method || p.paymentMode) === "LOAN" ? "badge-warning" :
-                                "badge-info"
+                            (p.method || p.paymentMode) === "LOAN" ? "badge-warning" :
+                              "badge-info"
                             }`}>
                             {p.method || p.paymentMode}
                           </span>
@@ -687,7 +687,56 @@ export default function SalesPage() {
                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
                   <button
                     className="btn btn-primary"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      const invoice = document.getElementById("printable-tax-invoice");
+                      if (!invoice) return;
+
+                      const printWindow = window.open("", "_blank", "width=900,height=700");
+                      if (!printWindow) {
+                        alert("Please allow pop-ups to print the invoice.");
+                        return;
+                      }
+
+                      printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Tax Invoice</title>
+        <style>
+          @page { size: A4; margin: 15mm; }
+          body {
+            font-family: Arial, sans-serif;
+            color: #0f172a;
+            background: white;
+            margin: 0;
+          }
+          .invoice-card {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            border: none;
+            border-radius: 0;
+            color: #0f172a;
+            background: white;
+          }
+          * { box-sizing: border-box; }
+          table { width: 100%; border-collapse: collapse; }
+          tr { break-inside: avoid; }
+        </style>
+      </head>
+      <body>${invoice.outerHTML}</body>
+    </html>
+  `);
+
+                      printWindow.document.close();
+                      printWindow.onload = () => {
+                        printWindow.focus();
+                        printWindow.print();
+                        printWindow.close();
+                      };
+                    }}
                     style={{ gap: "8px" }}
                   >
                     <Printer size={16} /> Print Tax Invoice
