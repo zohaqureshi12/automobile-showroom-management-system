@@ -619,8 +619,8 @@ export default function SalesPage() {
                       <tr key={p.id || i}>
                         <td>
                           <span className={`badge ${(p.method || p.paymentMode) === "CASH" ? "badge-success" :
-                              (p.method || p.paymentMode) === "LOAN" ? "badge-warning" :
-                                "badge-info"
+                            (p.method || p.paymentMode) === "LOAN" ? "badge-warning" :
+                              "badge-info"
                             }`}>
                             {p.method || p.paymentMode}
                           </span>
