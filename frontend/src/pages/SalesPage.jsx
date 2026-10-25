@@ -328,9 +328,10 @@ export default function SalesPage() {
     return null;
   };
 
+  
   // Real-time Search and Showroom Filter
   const filteredSales = sales.filter((s) => {
-    // 1. Showroom branch filter
+    // 1. Preserve the existing showroom branch filter
     const matchesShowroom =
       selectedShowroomFilter === "ALL" ||
       s.showroomId == selectedShowroomFilter ||
@@ -339,22 +340,35 @@ export default function SalesPage() {
 
     if (!matchesShowroom) return false;
 
-    // 2. Search text filter
-    const term = searchTerm.toLowerCase();
+    // 2. Search existing fields plus the vehicle brand
+    const term = searchTerm.trim().toLowerCase();
     const cust = getCustomerName(s).toLowerCase();
+    const vehicle = getVehicleObj(s);
+
+    const brand = (
+      vehicle?.brand ||
+      s.vehicleBrand ||
+      s.brand ||
+      ""
+    ).toLowerCase();
+
     const veh = getVehicleLabel(s).toLowerCase();
+    const plate = getVehiclePlate(s).toLowerCase();
     const sh = getShowroomName(s).toLowerCase();
     const offer = (s.offer || "").toLowerCase();
-    const date = (s.date || s.saleDate || "").toLowerCase();
+    const date = String(s.date || s.saleDate || "").toLowerCase();
 
     return (
       cust.includes(term) ||
+      brand.includes(term) ||
       veh.includes(term) ||
+      plate.includes(term) ||
       sh.includes(term) ||
       offer.includes(term) ||
       date.includes(term)
     );
   });
+
 
   // Filter Vehicles for Sale Form to In-Stock Only (+ Showroom filter if selected)
   const soldVehicleIds = new Set(sales.map((s) => s.vehicleId || s.vehicle?.id).filter(Boolean));
